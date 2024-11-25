@@ -1,6 +1,7 @@
-using WholeGenomeModel
 using Test
+using WholeGenomeModel
 
-@testset "WholeGenomeModel.jl" begin
-    # Write your tests here.
+TESTDIR = joinpath(pkgdir(WholeGenomeModel), "test")
+@testset "Tests WholeGenomeModel" begin
+    @test include(joinpath(TESTDIR, "whole_genome_dataset.jl"))
 end

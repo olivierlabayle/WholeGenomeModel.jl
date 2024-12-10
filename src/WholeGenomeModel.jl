@@ -6,19 +6,16 @@ using Optimisers
 using Printf
 using MLUtils
 using SnpArrays
+using Random
+using CSV
+using DataFrames
 
 include("whole_genome_dataset.jl")
-
-# MLP = @compact(
-#     block_chain = Lux.Chain(Lux.Dense(50, 10, tanh), Lux.Dense(10, 1)),
-#     out_chain = Lux.Dense(4, 1)
-#     ) do blocks
-#     yblocks = mapreduce(block_chain, vcat, blocks)
-#     out = out_chain(yblocks)
-#     @return out
-# end
+include("mlp.jl")
              
 export MLP
 export WholeGenomeDataset
+export DLWholeGenomeRegression
+export make_whole_genome_model
 
 end

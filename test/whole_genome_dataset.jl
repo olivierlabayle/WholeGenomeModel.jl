@@ -35,19 +35,19 @@ end
     @test length(train_loader.data.y) == expected_obs
     @test numobs(train_loader.data.X) == expected_obs
     batch = first(train_loader)
-    @test size(batch.y, 1) == 8
+    @test size(batch.y, 2) == 8
     @test size(batch.X, 2) == 8
     first_batch_indices = train_loader.data.X.indices[1:8]
-    @test batch.y == phenotypes[first_batch_indices]
+    @test batch.y == permutedims(phenotypes[first_batch_indices])
     ## Validation Loader
     expected_obs = 961
     @test length(val_loader.data.y) == expected_obs
     @test numobs(val_loader.data.X) == expected_obs
     batch = first(val_loader)
-    @test size(batch.y, 1) == 8
+    @test size(batch.y, 2) == 8
     @test size(batch.X, 2) == 8
     first_batch_indices = val_loader.data.X.indices[1:8]
-    @test batch.y == phenotypes[first_batch_indices]
+    @test batch.y == permutedims(phenotypes[first_batch_indices])
 end
 
 @testset "Test WholeGenomeDataset" begin
@@ -56,7 +56,7 @@ end
     variants_batchsize = nothing
     nobs = first(snp_datas).people
     # Test when indices is the whole set of indices
-    indices = collect(1:nobs)
+    indices = nothing
     wgd = WholeGenomeDataset(snp_datas, variants_batchsize, indices)
     n_variants = 450
     @test MLUtils.numobs(wgd) == nobs

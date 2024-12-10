@@ -1,13 +1,24 @@
-struct WholeGenomeDataset{T <: Union{Nothing, Int}}
+struct WholeGenomeDataset{B <: Union{Nothing, Int}, I <: Union{Nothing, Vector{Int}}}
     snp_datas::Vector{SnpData}
-    snp_batchsize::T
-    indices::Vector{Int}
+    variants_batchsize::B
+    indices::I
+end
+
+function WholeGenomeDataset(genotypes_prefix; variants_batchsize=nothing, indices=nothing)
+    snp_datas = snp_datas_from_prefix(genotypes_prefix)
+    return WholeGenomeDataset(snp_datas, variants_batchsize, indices)
 end
 
 MLUtils.numobs(wgd::WholeGenomeDataset) = length(wgd.indices)
 
+MLUtils.numobs(wgd::WholeGenomeDataset{B, Nothing}) where {B <: Union{Nothing, Int}} = first(wgd.snp_datas).people
+
+map_indices(dataset_indices::Nothing,  indices) = indices
+
+map_indices(dataset_indices, indices) = dataset_indices[indices]
+
 get_whole_snps_matrix(wgd::WholeGenomeDataset, idx) = mapreduce(
-    snp_data -> convert(Matrix{Float32}, @view(snp_data.snparray[wgd.indices[idx], :])),
+    snp_data -> convert(Matrix{Float32}, @view(snp_data.snparray[map_indices(wgd.indices, idx), :])),
     hcat,
     wgd.snp_datas
 )
@@ -52,7 +63,7 @@ function get_dataloaders(genotypes_prefix, phenotypes_path;
     return map(splits_indices) do split_indices
         split_indices = collect(split_indices)
         X = WholeGenomeDataset(snp_datas, variants_batchsize, split_indices)
-        y = phenotypes[split_indices]
+        y = permutedims(phenotypes[split_indices])
         DataLoader((X=X, y=y), batchsize=obs_batchsize, rng=rng, shuffle=shuffle_before_iterate)
     end
 end

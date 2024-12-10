@@ -51,7 +51,6 @@ function get_dataloaders(genotypes_prefix, phenotypes_path;
     splits_indices = splitobs(1:nobs; at=splits_ratios, shuffle=shuffle_before_split)
     return map(splits_indices) do split_indices
         split_indices = collect(split_indices)
-        println(length(split_indices))
         X = WholeGenomeDataset(snp_datas, variants_batchsize, split_indices)
         y = phenotypes[split_indices]
         DataLoader((X=X, y=y), batchsize=obs_batchsize, rng=rng, shuffle=shuffle_before_iterate)

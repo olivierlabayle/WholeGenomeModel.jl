@@ -2,6 +2,7 @@
 struct DLWholeGenomeRegression 
     model
     optimiser
+    patience::Int
     batchsize::Int
     max_epochs::Int
     train_ratio::Float64
@@ -12,6 +13,7 @@ end
 
 DLWholeGenomeRegression(model; 
     optimiser=Adam(),
+    patience=10,
     batchsize=8, 
     max_epochs=1000, 
     train_ratio=0.8,
@@ -19,9 +21,10 @@ DLWholeGenomeRegression(model;
     shuffle_before_iterate=true,
     rng=Random.default_rng()
     ) = DLWholeGenomeRegression(model, 
-    optimiser, 
-    batchsize, 
-    max_epochs, 
+    optimiser,
+    patience,
+    batchsize,
+    max_epochs,
     train_ratio,
     shuffle_before_split,
     shuffle_before_iterate,
@@ -30,8 +33,9 @@ DLWholeGenomeRegression(model;
 
 function learner_from_data(data::NamedTuple, model_type=MLP; 
     optimiser=Adam(),
+    patience=10,
     batchsize=8, 
-    max_epochs=10^6, 
+    max_epochs=1000, 
     train_ratio=0.8,
     shuffle_before_split=true,
     shuffle_before_iterate=true,
@@ -46,9 +50,10 @@ function learner_from_data(data::NamedTuple, model_type=MLP;
     input_size = size(X[[1]], 1)
     model = model_type(input_size; model_kwargs...)
     return DLWholeGenomeRegression(model;
-        optimiser=optimiser, 
-        batchsize=batchsize, 
-        max_epochs=max_epochs, 
+        optimiser=optimiser,
+        patience=patience,
+        batchsize=batchsize,
+        max_epochs=max_epochs,
         train_ratio=train_ratio,
         shuffle_before_split=shuffle_before_split,
         shuffle_before_iterate=shuffle_before_iterate,
@@ -66,22 +71,48 @@ function fit(learner::DLWholeGenomeRegression, data; verbosity=0)
         splits_ratios=learner.train_ratio, 
         shuffle_before_split=learner.shuffle_before_split,
         shuffle_before_iterate=learner.shuffle_before_iterate,
+        parallel=data.parallel,
         rng=learner.rng
     )
+    loss_fn = MSELoss()
+    best = (epoch=0, val_loss=Inf, parameters=ps)
+    train_losses = Float32[]
+    val_losses = Float32[]
     for epoch in 1:learner.max_epochs
-        epoch_loss = 0.
+        # Train on training set
+        epoch_train_loss = 0.
         for (x, y) in data.device(train_loader)
-            gs, loss, stats, train_state = Training.single_train_step!(
+            gs, train_loss, stats, train_state = Training.single_train_step!(
                 AutoZygote(), 
-                MSELoss(),
+                loss_fn,
                 (x, y), 
                 train_state
             )
-            epoch_loss += loss
+            epoch_train_loss += train_loss
         end
-        verbosity > 0 && @info(string("Training Loss after epoch ", epoch, ": ", epoch_loss))
+        push!(train_losses, epoch_train_loss)
+
+        # Evaluate on validation set
+        st_ = Lux.testmode(train_state.states)
+        epoch_val_loss = 0.
+        for (x, y) in val_loader
+            ŷ, st_ = learner.model(x, train_state.parameters, st_)
+            epoch_val_loss += loss_fn(ŷ, y)
+        end
+        # Update Loss Vectors
+        push!(val_losses, epoch_val_loss)
+        # Log
+        verbosity > 1 && @info(string("Training Loss after epoch ", epoch, ": ", epoch_train_loss))
+        verbosity > 0 && @info(string("Validation Loss after epoch ", epoch, ": ", epoch_val_loss))
+        # Update best, stop if patience is reached or continue
+        if epoch_val_loss < best.val_loss
+            best = (epoch=epoch, val_loss=epoch_val_loss, parameters=deepcopy(ps))
+        elseif (epoch - best.epoch) > learner.patience
+            verbosity > 0 && @info("Patience reached, stopping.")
+            return best
+        end
     end
-    return ps
+    return best
 end
 
 function MLP(input_size; hidden_size=10)

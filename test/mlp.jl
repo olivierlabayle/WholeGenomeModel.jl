@@ -35,11 +35,12 @@ end
         phenotypes_path = phenotypes_path,
         phenotypes_id = 1,
         device = cpu_device(),
+        parallel = true,
         variants_batchsize = nothing
     )
 
-    model = WholeGenomeModel.learner_from_data(data; hidden_size=20, optimiser=Adam(1e-4))
-    WholeGenomeModel.fit(model, data, verbosity=1)
+    learner = WholeGenomeModel.learner_from_data(data; hidden_size=20, optimiser=Adam(1e-4))
+    WholeGenomeModel.fit(learner, data, verbosity=1)
 end
 
 end

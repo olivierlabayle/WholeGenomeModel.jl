@@ -54,7 +54,8 @@ function get_dataloaders(genotypes_prefix, phenotypes_path;
     splits_ratios=0.7, 
     shuffle_before_split=true,
     shuffle_before_iterate=true,
-    rng=Random.default_rng()
+    rng=Random.default_rng(),
+    parallel=true
     )
     snp_datas = WholeGenomeModel.snp_datas_from_prefix(genotypes_prefix)
     phenotypes = WholeGenomeModel.phenotypes_from_file(phenotypes_path; phenotypes_id=phenotypes_id)
@@ -64,6 +65,6 @@ function get_dataloaders(genotypes_prefix, phenotypes_path;
         split_indices = collect(split_indices)
         X = WholeGenomeDataset(snp_datas, variants_batchsize, split_indices)
         y = permutedims(phenotypes[split_indices])
-        DataLoader((X=X, y=y), batchsize=obs_batchsize, rng=rng, shuffle=shuffle_before_iterate)
+        DataLoader((X=X, y=y), batchsize=obs_batchsize, rng=rng, shuffle=shuffle_before_iterate, parallel=parallel)
     end
 end

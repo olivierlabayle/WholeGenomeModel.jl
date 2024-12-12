@@ -12,10 +12,12 @@ TESTDIR = joinpath(pkgdir(WholeGenomeModel), "test")
 function write_phenotypes(;n=3202)
     tmpdir = mktempdir()
     filepath = joinpath(tmpdir, "phenotypes.csv")
-    phenotypes = DataFrame(Y_1 = rand(n))
+    y = vcat(rand(n-10), repeat([missing], 10))
+    phenotypes = DataFrame(Y_1 = y, ID=1:n)
     CSV.write(filepath, phenotypes)
     return filepath
 end
+
 @testset "Test get_dataloaders" begin
     genotypes_prefix = joinpath(TESTDIR, "assets", "unphased_bed", "ukb_")
     phenotypes_path = write_phenotypes(;n=3202)

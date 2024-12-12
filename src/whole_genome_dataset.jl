@@ -18,7 +18,7 @@ map_indices(dataset_indices::Nothing,  indices) = indices
 map_indices(dataset_indices, indices) = dataset_indices[indices]
 
 get_whole_snps_matrix(wgd::WholeGenomeDataset, idx) = mapreduce(
-    snp_data -> convert(Matrix{Float32}, @view(snp_data.snparray[map_indices(wgd.indices, idx), :])),
+    snp_data -> convert(Matrix{Float32}, @view(snp_data.snparray[map_indices(wgd.indices, idx), :]), impute=true),
     hcat,
     wgd.snp_datas
 )
@@ -39,9 +39,9 @@ function snp_datas_from_prefix(genotypes_prefix)
         for bed_file in joinpath.(genotypes_dir, bed_files)]
 end
 
-function phenotypes_from_file(phenotypes_path; phenotypes_id=1)
+function phenotypes_from_file(phenotypes_path; phenotypes_id="Y")
     if endswith(phenotypes_path, "csv")
-        return CSV.read(phenotypes_path, DataFrame; select=[phenotypes_id])[!, 1]
+        return CSV.read(phenotypes_path, DataFrame; select=string(["eid", phenotypes_id]))[!, 1]
     else
         throw(ArgumentError("Only (.csv, ) files are supported."))
     end
@@ -59,8 +59,10 @@ function get_dataloaders(genotypes_prefix, phenotypes_path;
     )
     snp_datas = WholeGenomeModel.snp_datas_from_prefix(genotypes_prefix)
     phenotypes = WholeGenomeModel.phenotypes_from_file(phenotypes_path; phenotypes_id=phenotypes_id)
+    missing_idx = findall(ismissing, phenotypes)
     nobs = size(phenotypes, 1)
-    splits_indices = splitobs(1:nobs; at=splits_ratios, shuffle=shuffle_before_split)
+    valid_indices = setdiff(1:nobs, missing_idx)
+    splits_indices = splitobs(valid_indices; at=splits_ratios, shuffle=shuffle_before_split)
     return map(splits_indices) do split_indices
         split_indices = collect(split_indices)
         X = WholeGenomeDataset(snp_datas, variants_batchsize, split_indices)

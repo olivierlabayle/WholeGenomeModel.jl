@@ -8,39 +8,49 @@ using Optimisers
 using CSV
 using DataFrames
 using Lux
+using TOML
 
 TESTDIR = joinpath(pkgdir(WholeGenomeModel), "test")
 
-function make_regression(genotypes_prefix; rng=Random.default_rng(), n_causal_variants=20)
-    X = WholeGenomeDataset(genotypes_prefix)
-    p = size(X[[1]], 1)
-    θ = zeros(Float32, p)
-    θ[rand(rng, 1:p, n_causal_variants)] = 2*rand(rng, Float32, n_causal_variants)
-    y = randn(rng, Float32, numobs(X))
-    for i in 1:numobs(X)
-        y[i] += θ'X[[i]][:, 1]
-    end
-    tmpdir = mktempdir()
-    phenotypes_path = joinpath(tmpdir, "phenotypes.csv")
-    CSV.write(phenotypes_path, DataFrame(Y=y))
-    return phenotypes_path
-end
+include(joinpath(TESTDIR, "testutils.jl"))
 
 @testset "Test MLP" begin
+    # Setup data and config
     genotypes_prefix = joinpath(TESTDIR, "assets", "unphased_bed", "ukb_")
-    phenotypes_path = make_regression(genotypes_prefix)
-    
-    data = (
-        genotypes_prefix = genotypes_prefix,
-        phenotypes_path = phenotypes_path,
-        phenotypes_id = 1,
-        device = cpu_device(),
-        parallel = true,
-        variants_batchsize = nothing
+    phenotypes_path = write_linear_phenotypes(genotypes_prefix)
+    config = Dict(
+        "global" => Dict(
+            "rng" => 123,
+            "verbosity" => 2
+        ),
+        "training" => Dict(
+            "train_ratio" => 0.8,
+            "patience" => 10,
+            "batchsize" => 8,
+            "max_epochs" => 1000,
+            "shuffle_before_iterate" => true,
+            "parallel" => true,
+            "device" => "cpu"  
+        ),
+        "data" => Dict(
+            "genotypes_prefix" => joinpath(TESTDIR, "assets", "unphased_bed", "ukb_"),
+            "phenotypes_path" => phenotypes_path,
+            "phenotypes_id" => "Y",
+            "shuffle_before_split" => true,
+        ),
+        "optimiser" => Dict(
+            "name" => "Adam",
+            "eta"  => 5e-4
+        ),
+        "model" => Dict(
+            "name" => "MLP",
+            "hidden_size" => 10
+        )
     )
-
-    learner = WholeGenomeModel.learner_from_data(data; hidden_size=20, optimiser=Adam(1e-4))
-    WholeGenomeModel.fit(learner, data, verbosity=1)
+    tmpdir = mktempdir()
+    configfile = joinpath(tmpdir, "config.toml")
+    open(io -> TOML.print(io, config), configfile, "w")
+    main(configfile)
 end
 
 end

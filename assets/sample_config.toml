@@ -1,0 +1,26 @@
+[global]
+rng = 123
+verbosity = 2
+
+[model]
+name = "MLP"
+hidden_size = 10
+
+[data]
+shuffle_before_split = true
+phenotypes_id = "Y"
+genotypes_prefix = "/Users/olivierlabayle/Dev/WholeGenomeModel.jl/test/assets/unphased_bed/ukb_"
+phenotypes_path = "/var/folders/t1/kx5d52vs4kg8v_d4hhmg193c0000gn/T/jl_tl1yyc/phenotypes.csv"
+
+[optimiser]
+name = "Adam"
+eta = 0.005
+
+[training]
+patience = 10
+parallel = true
+max_epochs = 1000
+device = "cpu"
+shuffle_before_iterate = true
+batchsize = 8
+train_ratio = 0.8

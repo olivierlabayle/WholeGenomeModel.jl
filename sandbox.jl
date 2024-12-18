@@ -13,7 +13,7 @@ data = (
     parallel = true,
 )
 
-y = WholeGenomeModel.phenotypes_from_file(data.phenotypes_path; phenotypes_id=data.phenotypes_id)
+y = WholeGenomeModel.read_phenotypes(data.phenotypes_path; phenotypes_id=data.phenotypes_id)
 
 learner = WholeGenomeModel.learner_from_data(data; hidden_size=20, optimiser=Adam(1e-4))
 WholeGenomeModel.fit(learner, data, verbosity=1)
